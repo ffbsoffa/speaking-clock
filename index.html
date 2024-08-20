@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Talking Clock with Howler.js and Kaleidoscope Background</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #000;
+            flex-direction: column;
+        }
+
+        .kaleidoscope {
+            position: absolute;
+            width: 200vmax;
+            height: 200vmax;
+            background: conic-gradient(from 0deg, #ffcf4a, #fe6f5e, #ffcf4a, #fe6f5e);
+            filter: blur(20px);
+            transform: rotate(0deg);
+            transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1), background-color 60s linear;
+        }
+
+        .clock {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13vw; /* Используем vw (viewport width) для адаптивного размера текста */
+    color: #000;
+    text-shadow: 0px 0px 4px #fff;
+    text-align: center;
+    line-height: 1.2;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+}
+
+.clock .hours, .clock .minutes, .clock .seconds {
+    display: block;
+}
+
+
+#volumeControl {
+    display: flex;
+    align-items: center;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+}
+
+
+#volumeSlider {
+    width: 150px;
+    margin-right: 10px;
+}
+
+#muteBtn {
+    display: flex;
+    align-items: center;
+}
+
+
+
+        input[type="range"] {
+    -webkit-appearance: none;
+    width: 100px;
+    height: 4px;
+    background: #444; /* Темный фон для бегунка */
+    outline: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #fff; /* Белый круг для ползунка */
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+input[type="range"]:hover {
+    opacity: 1; /* Увеличение видимости при наведении */
+}
+
+button {
+    background-color: #444; /* Темный фон для кнопки */
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #555; /* Изменение цвета при наведении */
+}
+
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100px;
+    height: 10px;
+    background: #333;
+    border-radius: 5px;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .15s ease-in-out;
+}
+
+input[type="range"]:hover {
+    opacity: 1;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #555;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    transition: background .15s ease-in-out;
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+    background: #777;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #555;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    transition: background .15s ease-in-out;
+}
+
+.mute-button {
+    display: flex;
+    align-items: center;
+}
+
+.mute-button i {
+    font-size: 24px;
+    color: #000;
+}
+
+    </style>
+</head>
+<body>
+    <div class="kaleidoscope"></div>
+    <div class="clock" id="clock">
+        <span class="hours"></span>
+        <span class="minutes"></span>
+        <span class="seconds"></span>
+    </div>
+    <div id="volumeControl">
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
+        <div id="muteBtn" class="mute-button">
+            <i id="muteIcon" class="fas fa-volume-mute"></i>
+        </div>
+    </div>
+    <script>
+        function createHowl(src) {
+            return new Howl({
+                src: [src],
+                volume: 1.0,
+            });
+        }
+        let globalVolume = 0.0; // Глобальный уровень громкости
+let isMuted = true; // по умолчанию заглушено
+
+const muteBtn = document.getElementById('muteBtn');
+const muteIcon = document.getElementById('muteIcon');
+const volumeSlider = document.getElementById('volumeSlider');
+
+// Устанавливаем начальный mute
+Howler.mute(true);
+
+muteBtn.addEventListener('click', function() {
+    isMuted = !isMuted;
+    Howler.mute(isMuted);
+    if (!isMuted && globalVolume == 0.0) {
+        globalVolume = 0.5; // Устанавливаем начальную громкость после выключения Mute, если громкость на нуле
+        Howler.volume(globalVolume);
+        volumeSlider.value = globalVolume; // Обновляем ползунок
+    }
+    muteIcon.className = isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+});
+
+volumeSlider.addEventListener('input', (event) => {
+    globalVolume = event.target.value;
+    Howler.volume(globalVolume);
+
+    if (globalVolume > 0) {
+        isMuted = false;
+        Howler.mute(false);
+        muteIcon.className = 'fas fa-volume-up';
+    } else {
+        isMuted = true;
+        Howler.mute(true);
+        muteIcon.className = 'fas fa-volume-mute';
+    }
+});
+
+function playBeepSequence(callback) {
+    const now = new Date();
+    const currentMillis = now.getMilliseconds();
+    const seconds = now.getSeconds();
+    const millisToNextSecond = 1000 - currentMillis;
+
+    const delayTo8 = millisToNextSecond + ((7 - seconds + 60) % 10) * 1000;
+    const delayTo9 = delayTo8 + 1000;
+    const delayTo10 = delayTo8 + 2000;
+
+    setTimeout(() => {
+        const beep = createHowl('audio/beep.wav');
+        beep.volume(globalVolume); // Устанавливаем начальный уровень громкости
+        beep.play();
+    }, delayTo8);
+    setTimeout(() => {
+        const beep = createHowl('audio/beep.wav');
+        beep.volume(globalVolume); // Устанавливаем начальный уровень громкости
+        beep.play();
+    }, delayTo9);
+    setTimeout(() => {
+        const beep = createHowl('audio/beep.wav');
+        beep.volume(globalVolume); // Устанавливаем начальный уровень громкости
+        beep.play();
+        if (callback) {
+            setTimeout(callback, 500);  // Задержка 500 мс после третьей пищалки перед озвучкой
+        }
+    }, delayTo10);
+}
+
+function startPlayingSounds() {
+    playBeepSequence(playTimeSequence); // Автоматически запускаем последовательность
+    setInterval(() => {
+        playBeepSequence(playTimeSequence);
+    }, 10000);
+}
+
+window.onload = function() {
+    Howler.volume(0.0); // Начальное воспроизведение звука с нулевой громкостью
+    startPlayingSounds();
+};
+
+function playTimeSequence() {
+    const now = new Date();
+    let hours = now.getHours();
+    let minutes = now.getMinutes();
+    let seconds = now.getSeconds();
+
+    // Смещение на 10 секунд
+    seconds += 10;
+    if (seconds >= 60) {
+        seconds -= 60;
+        minutes++;
+        if (minutes >= 60) {
+            minutes = 0;
+            hours++;
+            if (hours >= 24) {
+                hours = 0;
+            }
+        }
+    }
+
+    const prefixSound = createHowl('audio/prefix.mp3', 0.3); // устанавливаем громкость
+    const hoursSound = createHowl(`audio/hours_${hours === 0 ? 'zero' : hours}.mp3`, 0.2);
+    let secondsValue = String(Math.floor(seconds / 10) * 10).padStart(2, '0');
+    const secondsSound = createHowl(`audio/seconds_${secondsValue}.mp3`, 0.2);
+
+    if (minutes > 0) {
+        const minutesSound = createHowl(`audio/minutes_${minutes.toString().padStart(2, '0')}.mp3`, 0.2);
+        playInSequence([prefixSound, hoursSound, minutesSound, secondsSound]);
+    } else {
+        playInSequence([prefixSound, hoursSound, secondsSound]);
+    }
+}
+
+        function playInSequence(sounds) {
+            if (sounds.length === 0) return;
+            const [first, ...rest] = sounds;
+            first.play();
+            first.on('end', () => playInSequence(rest));
+        }
+
+        function startSequence() {
+            playBeepSequence(playTimeSequence);  // Сначала пищалки, затем озвучивание после третьей пищалки
+        }
+
+        window.onload = function() {
+            startSequence();  // Автоматически запускаем последовательность
+            setInterval(startSequence, 10000);  // Повторяем каждые 10 секунд
+
+            // Устанавливаем начальный уровень громкости на 0 (mute)
+            let soundVolume = document.getElementById('volumeControl');
+            if (soundVolume) {
+                soundVolume.value = 0;
+                Howler.volume(0);
+            }
+        };
+
+        function updateBackgroundRotation() {
+            const now = new Date();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+            const totalMillis = seconds * 1000 + milliseconds;
+            const degrees = (totalMillis / 1000) * 6;
+            const kaleidoscope = document.querySelector('.kaleidoscope');
+
+            kaleidoscope.style.transform = `rotate(${degrees}deg)`;
+
+            if (seconds === 59 && milliseconds > 900) {
+                kaleidoscope.style.transitionDuration = '0.5s';
+            } else if (seconds === 0) {
+                kaleidoscope.style.transitionDuration = '0s';
+            } else {
+                kaleidoscope.style.transitionDuration = `${1 - milliseconds / 1000}s`;
+            }
+
+            requestAnimationFrame(updateBackgroundRotation);
+        }
+
+        function updateBackgroundColor() {
+    const now = new Date();
+    const seconds = now.getSeconds();
+    const milliseconds = now.getMilliseconds();
+    const progress = (seconds * 1000 + milliseconds) / 60000;
+
+    const kaleidoscope = document.querySelector('.kaleidoscope');
+
+    const colors = [
+        '#FF5733', '#C70039', '#900C3F', '#581845', '#1F618D',
+        '#2ECC71', '#F1C40F', '#E67E22', '#D35400', '#AAB7B8',
+        '#3498DB', '#9B59B6', '#16A085', '#27AE60', '#2980B9',
+        '#8E44AD', '#34495E', '#2C3E50', '#7D3C98', '#AF7AC5',
+        '#1ABC9C', '#F39C12', '#D98880', '#5DADE2', '#A569BD',
+        '#73C6B6', '#F7DC6F', '#D4AC0D', '#F5B041', '#DC7633',
+        '#A9CCE3', '#99A3A4', '#7FB3D5', '#82E0AA', '#B7950B',
+        '#AF601A', '#E59866', '#BB8FCE', '#F1948A', '#B03A2E',
+        '#85C1E9', '#F5CBA7', '#E74C3C', '#45B39D', '#9A7D0A',
+        '#85929E', '#2874A6', '#884EA0', '#2E86C1', '#3498DB',
+        '#D7BDE2', '#FAD7A0', '#ABB2B9', '#7FB3D5', '#76D7C4',
+        '#A3E4D7', '#D1F2EB', '#D0ECE7', '#F9E79F', '#F5CBA7'
+    ];
+
+    const currentColorIndex = Math.floor(now.getMinutes() % colors.length);
+    const nextColorIndex = (currentColorIndex + 1) % colors.length;
+
+    const currentColor = colors[currentColorIndex];
+    const nextColor = colors[nextColorIndex];
+
+    kaleidoscope.style.background = `linear-gradient(to bottom right, ${currentColor}, ${nextColor})`;
+
+    requestAnimationFrame(updateBackgroundColor);
+}
+
+function startRotationAndFade() {
+    const kaleidoscope = document.querySelector('.kaleidoscope');
+    kaleidoscope.style.opacity = 0;
+    kaleidoscope.style.transition = 'none';
+
+    const now = new Date();
+    const seconds = now.getSeconds();
+    const milliseconds = now.getMilliseconds();
+    const totalMillis = seconds * 1000 + milliseconds;
+    const degrees = (totalMillis / 1000) * 6;
+    kaleidoscope.style.transform = `rotate(${degrees}deg)`;
+
+    setTimeout(() => {
+        kaleidoscope.style.transition = 'opacity 4s ease-in-out, transform 1s linear';
+        kaleidoscope.style.opacity = 1;
+        requestAnimationFrame(updateBackgroundRotation);
+        requestAnimationFrame(updateBackgroundColor); // Здесь добавляем
+    }, 100);
+}
+
+document.addEventListener('DOMContentLoaded', startRotationAndFade);
+
+
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+
+            document.querySelector('.hours').textContent = hours;
+            document.querySelector('.minutes').textContent = minutes;
+            document.querySelector('.seconds').textContent = seconds;
+
+            requestAnimationFrame(updateClock);
+        }
+
+        requestAnimationFrame(updateClock);
+    </script>
+</body>
+</html>
