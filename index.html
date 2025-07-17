@@ -31,17 +31,21 @@ body {
 
         .clock {
     font-family: "JetBrains Mono", monospace;
-    font-size: 13vw; /* Используем vw (viewport width) для адаптивного размера текста */
+    font-size: 13vw;
     color: #000;
     text-shadow: 0px 0px 4px #fff;
     text-align: center;
-    line-height: 1.2;
+    line-height: 1.1;
     z-index: 20;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center; /* Центрируем элементы по вертикали */
-    height: 100%; /* Задаем высоту блока на 100% */
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
 }
 
 .clock .hours, .clock .minutes, .clock .seconds {
@@ -163,12 +167,27 @@ input[type="range"]::-moz-range-thumb {
 
 @media (max-width: 768px) {
     .clock {
-        font-size: 20vw;
+        font-size: 18vw;
+        line-height: 1.0;
+        padding: 20px;
+    }
+
+    .clock .hours, .clock .minutes, .clock .seconds {
+        display: block;
+        margin: 0;
+        padding: 0;
     }
 
     #volumeControl {
         top: 10px;
         right: 10px;
+        transform: scale(1.2);
+    }
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+    .clock {
+        font-size: 12vh;
     }
 }
 
@@ -186,6 +205,9 @@ input[type="range"]::-moz-range-thumb {
         <div id="muteBtn" class="mute-button">
             <i id="muteIcon" class="fas fa-volume-mute"></i>
         </div>
+    </div>
+    <div id="audioPrompt" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; z-index: 1000; text-align: center;">
+        <p>Tap anywhere to enable audio</p>
     </div>
     <script>
         // Performance monitoring
@@ -298,17 +320,65 @@ function startPlayingSounds() {
     setInterval(runSequence, 10000);
 }
 
-window.onload = async function() {
-    audioManager.setVolume(0.0); // Initial playback with zero volume
+// Mobile/iOS support - requires user interaction
+let isAudioInitialized = false;
+let pendingStart = false;
+
+// Detect mobile devices
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+async function initAudio() {
+    if (isAudioInitialized) return;
     
-    // Preload critical sounds
-    await audioManager.preloadSounds([
-        'audio/beep.wav',
-        'audio/beep_peak.wav',
-        'audio/prefix.mp3'
-    ]);
-    
-    startPlayingSounds();
+    try {
+        await audioManager.init();
+        audioManager.setVolume(0.0);
+        
+        // Preload critical sounds
+        await audioManager.preloadSounds([
+            'audio/beep.wav',
+            'audio/beep_peak.wav',
+            'audio/prefix.mp3'
+        ]);
+        
+        isAudioInitialized = true;
+        
+        // Hide audio prompt
+        const audioPrompt = document.getElementById('audioPrompt');
+        if (audioPrompt) {
+            audioPrompt.style.display = 'none';
+        }
+        
+        if (pendingStart) {
+            startPlayingSounds();
+            pendingStart = false;
+        }
+    } catch (e) {
+        console.error('Audio initialization failed:', e);
+    }
+}
+
+// Add click handler for mobile
+document.addEventListener('click', initAudio);
+document.addEventListener('touchstart', initAudio);
+
+window.onload = function() {
+    if (isAudioInitialized) {
+        startPlayingSounds();
+    } else {
+        pendingStart = true;
+        
+        // Show audio prompt on mobile
+        if (isMobile) {
+            const audioPrompt = document.getElementById('audioPrompt');
+            if (audioPrompt) {
+                audioPrompt.style.display = 'block';
+            }
+        }
+        
+        // Try to initialize immediately (works on desktop)
+        initAudio();
+    }
 };
 
 function playTimeSequence() {

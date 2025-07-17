@@ -32,9 +32,18 @@ class AudioManager {
             this.gainNode.connect(this.context.destination);
             this.updateVolume();
             
-            // Resume context if suspended (for Safari/Chrome)
+            // Resume context if suspended (for Safari/Chrome/iOS)
             if (this.context.state === 'suspended') {
                 await this.context.resume();
+            }
+            
+            // iOS Safari requires explicit resume on user interaction
+            if (this.context.state === 'suspended') {
+                document.addEventListener('touchstart', async () => {
+                    if (this.context.state === 'suspended') {
+                        await this.context.resume();
+                    }
+                }, { once: true });
             }
         } catch (e) {
             console.error('Failed to initialize AudioContext:', e);
