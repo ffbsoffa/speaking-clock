@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Audio Test</title>
+    <script src="audio-manager.js"></script>
+</head>
+<body>
+    <h1>Audio Manager Test</h1>
+    <button onclick="testBeep()">Test Beep</button>
+    <button onclick="testSequence()">Test Sequence</button>
+    <br><br>
+    <label>Volume: <input type="range" id="volume" min="0" max="1" step="0.1" value="1" onchange="audioManager.setVolume(this.value)"></label>
+    <br>
+    <label><input type="checkbox" id="mute" onchange="audioManager.setMute(this.checked)"> Mute</label>
+    
+    <script>
+        async function testBeep() {
+            console.log('Playing beep...');
+            await audioManager.play('audio/beep.wav');
+            console.log('Beep finished');
+        }
+        
+        async function testSequence() {
+            console.log('Playing sequence...');
+            await audioManager.playSequence([
+                { url: 'audio/prefix.mp3', options: { volume: 0.3 } },
+                { url: 'audio/hours_20.mp3', options: { volume: 0.2 } },
+                { url: 'audio/minutes_15.mp3', options: { volume: 0.2 } },
+                { url: 'audio/seconds_30.mp3', options: { volume: 0.2 } }
+            ]);
+            console.log('Sequence finished');
+        }
+    </script>
+</body>
+</html>

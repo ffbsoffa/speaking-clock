@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Talking Clock with Howler.js and Kaleidoscope Background</title>
+    <title>Говорящие часы (FFB_soffa)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+    <script src="audio-manager.js"></script>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: #000;
-            flex-direction: column;
-        }
+body {
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #000;
+    flex-direction: column;
+}
+
 
         .kaleidoscope {
             position: absolute;
@@ -38,6 +39,9 @@
     z-index: 20;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    align-items: center; /* Центрируем элементы по вертикали */
+    height: 100%; /* Задаем высоту блока на 100% */
 }
 
 .clock .hours, .clock .minutes, .clock .seconds {
@@ -156,6 +160,18 @@ input[type="range"]::-moz-range-thumb {
     color: #000;
 }
 
+
+@media (max-width: 768px) {
+    .clock {
+        font-size: 20vw;
+    }
+
+    #volumeControl {
+        top: 10px;
+        right: 10px;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -172,87 +188,126 @@ input[type="range"]::-moz-range-thumb {
         </div>
     </div>
     <script>
-        function createHowl(src) {
-            return new Howl({
-                src: [src],
-                volume: 1.0,
-            });
-        }
-        let globalVolume = 0.0; // Глобальный уровень громкости
-let isMuted = true; // по умолчанию заглушено
+        // Performance monitoring
+        let lastPlayTime = 0;
+        let isPlaying = false;
+        
+        let globalVolume = 0.0; // Global volume level
+let isMuted = true; // muted by default
 
 const muteBtn = document.getElementById('muteBtn');
 const muteIcon = document.getElementById('muteIcon');
 const volumeSlider = document.getElementById('volumeSlider');
 
-// Устанавливаем начальный mute
-Howler.mute(true);
+// Set initial mute
+audioManager.setMute(true);
 
 muteBtn.addEventListener('click', function() {
     isMuted = !isMuted;
-    Howler.mute(isMuted);
+    audioManager.setMute(isMuted);
     if (!isMuted && globalVolume == 0.0) {
-        globalVolume = 0.5; // Устанавливаем начальную громкость после выключения Mute, если громкость на нуле
-        Howler.volume(globalVolume);
-        volumeSlider.value = globalVolume; // Обновляем ползунок
+        globalVolume = 0.5; // Set initial volume after unmute if volume is zero
+        audioManager.setVolume(globalVolume);
+        volumeSlider.value = globalVolume; // Update slider
     }
     muteIcon.className = isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
 });
 
 volumeSlider.addEventListener('input', (event) => {
     globalVolume = event.target.value;
-    Howler.volume(globalVolume);
+    audioManager.setVolume(globalVolume);
 
     if (globalVolume > 0) {
         isMuted = false;
-        Howler.mute(false);
+        audioManager.setMute(false);
         muteIcon.className = 'fas fa-volume-up';
     } else {
         isMuted = true;
-        Howler.mute(true);
+        audioManager.setMute(true);
         muteIcon.className = 'fas fa-volume-mute';
     }
 });
 
 function playBeepSequence(callback) {
+    // Prevent overlapping sequences
+    if (isPlaying) {
+        console.warn('Skipping overlapping sequence - already playing');
+        return;
+    }
+    
+    isPlaying = true;
+    console.log(`Starting beep sequence at ${new Date().toLocaleTimeString()}`);
+    
     const now = new Date();
     const currentMillis = now.getMilliseconds();
     const seconds = now.getSeconds();
+    const minutes = now.getMinutes();
     const millisToNextSecond = 1000 - currentMillis;
 
     const delayTo8 = millisToNextSecond + ((7 - seconds + 60) % 10) * 1000;
     const delayTo9 = delayTo8 + 1000;
     const delayTo10 = delayTo8 + 2000;
 
+    // Check if this is the beginning of an hour (minute 0, second 0-9)
+    const isHourStart = minutes === 0 && seconds >= 0 && seconds <= 9;
+    const thirdBeepSound = isHourStart ? 'audio/beep_peak.wav' : 'audio/beep.wav';
+
+    console.log(`Beep sequence: current second ${seconds}, delays ${delayTo8}, ${delayTo9}, ${delayTo10}`);
+    if (isHourStart) {
+        console.log('Using special hour start beep for third signal');
+    }
+
+    // Simple setTimeout approach - back to basics
     setTimeout(() => {
-        const beep = createHowl('audio/beep.wav');
-        beep.volume(globalVolume); // Устанавливаем начальный уровень громкости
-        beep.play();
+        console.log('Playing beep 1');
+        audioManager.play('audio/beep.wav', { volume: 0.3 });
     }, delayTo8);
+    
     setTimeout(() => {
-        const beep = createHowl('audio/beep.wav');
-        beep.volume(globalVolume); // Устанавливаем начальный уровень громкости
-        beep.play();
+        console.log('Playing beep 2');
+        audioManager.play('audio/beep.wav', { volume: 0.3 });
     }, delayTo9);
+    
     setTimeout(() => {
-        const beep = createHowl('audio/beep.wav');
-        beep.volume(globalVolume); // Устанавливаем начальный уровень громкости
-        beep.play();
-        if (callback) {
-            setTimeout(callback, 500);  // Задержка 500 мс после третьей пищалки перед озвучкой
-        }
+        console.log('Playing beep 3' + (isHourStart ? ' (HOUR START)' : ''));
+        audioManager.play(thirdBeepSound, { volume: 0.3 }).then(() => {
+            if (callback) {
+                setTimeout(() => {
+                    console.log('Starting voice callback');
+                    callback();
+                    isPlaying = false;
+                }, 500);
+            } else {
+                isPlaying = false;
+            }
+        });
     }, delayTo10);
 }
 
 function startPlayingSounds() {
-    playBeepSequence(playTimeSequence); // Автоматически запускаем последовательность
-    setInterval(() => {
+    // Simple approach - just use setInterval
+    const runSequence = () => {
+        console.log(`Starting sequence at ${new Date().toLocaleTimeString()}`);
         playBeepSequence(playTimeSequence);
-    }, 10000);
+    };
+    
+    // Start immediately
+    runSequence();
+    
+    // Then every 10 seconds
+    setInterval(runSequence, 10000);
 }
 
-window.onload = function() {
-    Howler.volume(0.0); // Начальное воспроизведение звука с нулевой громкостью
+window.onload = async function() {
+    audioManager.setVolume(0.0); // Initial playback with zero volume
+    
+    // Preload critical sounds
+    await audioManager.preloadSounds([
+        'audio/beep.wav',
+        'audio/beep_peak.wav',
+        'audio/prefix.mp3'
+    ]);
+    
     startPlayingSounds();
 };
 
@@ -262,7 +317,9 @@ function playTimeSequence() {
     let minutes = now.getMinutes();
     let seconds = now.getSeconds();
 
-    // Смещение на 10 секунд
+    console.log(`Time sequence called at: ${now.toLocaleTimeString()}`);
+
+    // Offset by 10 seconds
     seconds += 10;
     if (seconds >= 60) {
         seconds -= 60;
@@ -276,41 +333,31 @@ function playTimeSequence() {
         }
     }
 
-    const prefixSound = createHowl('audio/prefix.mp3', 0.3); // устанавливаем громкость
-    const hoursSound = createHowl(`audio/hours_${hours === 0 ? 'zero' : hours}.mp3`, 0.2);
+    const prefixSound = { url: 'audio/prefix.mp3', options: { volume: 0.7 } };
+    const hoursSound = { url: `audio/hours_${hours === 0 ? 'zero' : hours}.mp3`, options: { volume: 0.6 } };
     let secondsValue = String(Math.floor(seconds / 10) * 10).padStart(2, '0');
-    const secondsSound = createHowl(`audio/seconds_${secondsValue}.mp3`, 0.2);
+    const secondsSound = { url: `audio/seconds_${secondsValue}.mp3`, options: { volume: 0.6 } };
 
+    console.log(`Playing time: ${hours}:${minutes.toString().padStart(2, '0')}:${secondsValue}`);
+    
     if (minutes > 0) {
-        const minutesSound = createHowl(`audio/minutes_${minutes.toString().padStart(2, '0')}.mp3`, 0.2);
+        const minutesSound = { url: `audio/minutes_${minutes.toString().padStart(2, '0')}.mp3`, options: { volume: 0.6 } };
         playInSequence([prefixSound, hoursSound, minutesSound, secondsSound]);
     } else {
         playInSequence([prefixSound, hoursSound, secondsSound]);
     }
 }
 
-        function playInSequence(sounds) {
-            if (sounds.length === 0) return;
-            const [first, ...rest] = sounds;
-            first.play();
-            first.on('end', () => playInSequence(rest));
-        }
+function playInSequence(sounds) {
+    if (sounds.length === 0) return;
+    
+    const [first, ...rest] = sounds;
+    audioManager.play(first.url, first.options).then(() => {
+        playInSequence(rest);
+    });
+}
 
-        function startSequence() {
-            playBeepSequence(playTimeSequence);  // Сначала пищалки, затем озвучивание после третьей пищалки
-        }
 
-        window.onload = function() {
-            startSequence();  // Автоматически запускаем последовательность
-            setInterval(startSequence, 10000);  // Повторяем каждые 10 секунд
-
-            // Устанавливаем начальный уровень громкости на 0 (mute)
-            let soundVolume = document.getElementById('volumeControl');
-            if (soundVolume) {
-                soundVolume.value = 0;
-                Howler.volume(0);
-            }
-        };
 
         function updateBackgroundRotation() {
             const now = new Date();
