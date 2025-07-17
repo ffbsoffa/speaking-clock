@@ -2,433 +2,632 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>Говорящие часы (FFB_soffa)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <script src="audio-manager.js"></script>
+    
+    <!-- JetBrains Mono font embedded locally -->
+    <link rel="stylesheet" href="jetbrains-mono.css">
+    
+    <!-- Fallback styles for immediate display -->
+    <style>
+        /* Critical CSS for immediate display */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #667eea !important;
+            color: white !important;
+            font-family: monospace !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+        }
+        
+        .clock {
+            text-align: center !important;
+            font-size: 15vw !important;
+            font-weight: 300 !important;
+            color: white !important;
+        }
+        
+        .hours, .minutes, .seconds {
+            display: block !important;
+            line-height: 0.85 !important;
+            margin: 0.1em 0 !important;
+        }
+        
+        @media (max-width: 768px) {
+            .clock {
+                font-size: 18vw !important;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
     <style>
 body {
     margin: 0;
     overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     height: 100vh;
     background: #000;
-    flex-direction: column;
-}
-
-
-        .kaleidoscope {
-            position: absolute;
-            width: 200vmax;
-            height: 200vmax;
-            background: conic-gradient(from 0deg, #ffcf4a, #fe6f5e, #ffcf4a, #fe6f5e);
-            filter: blur(20px);
-            transform: rotate(0deg);
-            transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1), background-color 60s linear;
-        }
-
-        .clock {
-    font-family: "JetBrains Mono", monospace;
-    font-size: 13vw;
-    color: #000;
-    text-shadow: 0px 0px 4px #fff;
-    text-align: center;
-    line-height: 1.1;
-    z-index: 20;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    width: 100vw;
-    position: fixed;
-    top: 0;
-    left: 0;
+    position: relative;
+}
+
+.kaleidoscope {
+    position: absolute;
+    width: 200vmax;
+    height: 200vmax;
+    background: conic-gradient(from 0deg, #ffcf4a, #fe6f5e, #ffcf4a, #fe6f5e);
+    filter: blur(20px);
+    transform: rotate(0deg);
+    transition: transform 0.9s cubic-bezier(0.4, 0, 0.2, 1), background-color 60s linear;
+}
+
+.clock {
+    text-align: center;
+    color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    z-index: 20;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    font-family: 'JetBrains Mono', 'SF Mono', Monaco, 'Courier New', monospace;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
 }
 
 .clock .hours, .clock .minutes, .clock .seconds {
     display: block;
+    font-weight: 300;
+    line-height: 0.85;
+    margin: 0.2em 0;
 }
 
+.clock .hours {
+    font-size: 15vw;
+}
+
+.clock .minutes {
+    font-size: 15vw;
+    opacity: 0.9;
+}
+
+.clock .seconds {
+    font-size: 15vw;
+    opacity: 0.7;
+}
 
 #volumeControl {
-    display: flex;
-    align-items: center;
-    position: absolute;
+    position: fixed;
     top: 20px;
     right: 20px;
     z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 8px 12px;
 }
 
-
 #volumeSlider {
-    width: 150px;
-    margin-right: 10px;
+    width: 80px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    outline: none;
+    border-radius: 2px;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#volumeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+#volumeSlider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 #muteBtn {
-    display: flex;
-    align-items: center;
-}
-
-
-
-        input[type="range"] {
-    -webkit-appearance: none;
-    width: 100px;
-    height: 4px;
-    background: #444; /* Темный фон для бегунка */
-    outline: none;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    background: #fff; /* Белый круг для ползунка */
-    cursor: pointer;
-    border-radius: 50%;
-}
-
-input[type="range"]:hover {
-    opacity: 1; /* Увеличение видимости при наведении */
-}
-
-button {
-    background-color: #444; /* Темный фон для кнопки */
-    color: #fff;
+    background: none;
     border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
 }
 
-button:hover {
-    background-color: #555; /* Изменение цвета при наведении */
+#muteBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
 }
 
-input[type="range"] {
-    -webkit-appearance: none;
-    width: 100px;
-    height: 10px;
-    background: #333;
-    border-radius: 5px;
-    outline: none;
-    opacity: 0.7;
-    transition: opacity .15s ease-in-out;
-}
-
-input[type="range"]:hover {
-    opacity: 1;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    background: #555;
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
-    transition: background .15s ease-in-out;
-}
-
-input[type="range"]:active::-webkit-slider-thumb {
-    background: #777;
-}
-
-input[type="range"]::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    background: #555;
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
-    transition: background .15s ease-in-out;
-}
-
-.mute-button {
-    display: flex;
-    align-items: center;
-}
-
-.mute-button i {
-    font-size: 24px;
-    color: #000;
+#muteBtn i {
+    font-size: 18px;
+    color: #fff;
 }
 
 
+/* Mobile optimizations */
 @media (max-width: 768px) {
-    .clock {
+    .clock .hours {
         font-size: 18vw;
-        line-height: 1.0;
-        padding: 20px;
     }
-
-    .clock .hours, .clock .minutes, .clock .seconds {
-        display: block;
-        margin: 0;
-        padding: 0;
+    
+    .clock .minutes {
+        font-size: 18vw;
     }
+    
+    .clock .seconds {
+        font-size: 18vw;
+    }
+    
+    #volumeControl {
+        top: 15px;
+        right: 15px;
+        padding: 6px 10px;
+    }
+    
+    #volumeSlider {
+        width: 60px;
+    }
+    
+    #muteBtn i {
+        font-size: 16px;
+    }
+}
 
+/* Landscape mobile */
+@media (orientation: landscape) and (max-height: 600px) {
+    .clock .hours {
+        font-size: 12vh;
+    }
+    
+    .clock .minutes {
+        font-size: 12vh;
+    }
+    
+    .clock .seconds {
+        font-size: 12vh;
+    }
+    
     #volumeControl {
         top: 10px;
         right: 10px;
-        transform: scale(1.2);
+        scale: 0.9;
     }
 }
 
-@media (orientation: landscape) and (max-height: 600px) {
-    .clock {
-        font-size: 12vh;
+/* Very small screens */
+@media (max-width: 480px) {
+    .clock .hours {
+        font-size: 20vw;
+    }
+    
+    .clock .minutes {
+        font-size: 20vw;
+    }
+    
+    .clock .seconds {
+        font-size: 20vw;
     }
 }
-
     </style>
 </head>
 <body>
     <div class="kaleidoscope"></div>
     <div class="clock" id="clock">
-        <span class="hours"></span>
-        <span class="minutes"></span>
-        <span class="seconds"></span>
+        <span class="hours">12</span>
+        <span class="minutes">34</span>
+        <span class="seconds">56</span>
     </div>
     <div id="volumeControl">
         <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1">
-        <div id="muteBtn" class="mute-button">
+        <button id="muteBtn">
             <i id="muteIcon" class="fas fa-volume-mute"></i>
-        </div>
-    </div>
-    <div id="audioPrompt" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 10px; z-index: 1000; text-align: center;">
-        <p>Tap anywhere to enable audio</p>
+        </button>
     </div>
     <script>
-        // Performance monitoring
-        let lastPlayTime = 0;
+        // Howler.js audio system
+        let audioCache = new Map();
         let isPlaying = false;
         
-        let globalVolume = 0.0; // Global volume level
-let isMuted = true; // muted by default
+        let globalVolume = 0.0;
+        let isMuted = true;
 
-const muteBtn = document.getElementById('muteBtn');
-const muteIcon = document.getElementById('muteIcon');
-const volumeSlider = document.getElementById('volumeSlider');
+        const muteBtn = document.getElementById('muteBtn');
+        const muteIcon = document.getElementById('muteIcon');
+        const volumeSlider = document.getElementById('volumeSlider');
 
-// Set initial mute
-audioManager.setMute(true);
+        // Set initial mute
+        Howler.mute(true);
 
-muteBtn.addEventListener('click', function() {
-    isMuted = !isMuted;
-    audioManager.setMute(isMuted);
-    if (!isMuted && globalVolume == 0.0) {
-        globalVolume = 0.5; // Set initial volume after unmute if volume is zero
-        audioManager.setVolume(globalVolume);
-        volumeSlider.value = globalVolume; // Update slider
-    }
-    muteIcon.className = isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
-});
+        // Volume control
+        muteBtn.addEventListener('click', function() {
+            isMuted = !isMuted;
+            Howler.mute(isMuted);
+            if (!isMuted && globalVolume == 0.0) {
+                globalVolume = 0.5;
+                volumeSlider.value = globalVolume;
+                Howler.volume(globalVolume);
+            }
+            muteIcon.className = isMuted ? 'fas fa-volume-mute' : 'fas fa-volume-up';
+        });
 
-volumeSlider.addEventListener('input', (event) => {
-    globalVolume = event.target.value;
-    audioManager.setVolume(globalVolume);
-
-    if (globalVolume > 0) {
-        isMuted = false;
-        audioManager.setMute(false);
-        muteIcon.className = 'fas fa-volume-up';
-    } else {
-        isMuted = true;
-        audioManager.setMute(true);
-        muteIcon.className = 'fas fa-volume-mute';
-    }
-});
-
-function playBeepSequence(callback) {
-    // Prevent overlapping sequences
-    if (isPlaying) {
-        console.warn('Skipping overlapping sequence - already playing');
-        return;
-    }
-    
-    isPlaying = true;
-    console.log(`Starting beep sequence at ${new Date().toLocaleTimeString()}`);
-    
-    const now = new Date();
-    const currentMillis = now.getMilliseconds();
-    const seconds = now.getSeconds();
-    const minutes = now.getMinutes();
-    const millisToNextSecond = 1000 - currentMillis;
-
-    const delayTo8 = millisToNextSecond + ((7 - seconds + 60) % 10) * 1000;
-    const delayTo9 = delayTo8 + 1000;
-    const delayTo10 = delayTo8 + 2000;
-
-    // Check if this is the beginning of an hour (minute 0, second 0-9)
-    const isHourStart = minutes === 0 && seconds >= 0 && seconds <= 9;
-    const thirdBeepSound = isHourStart ? 'audio/beep_peak.wav' : 'audio/beep.wav';
-
-    console.log(`Beep sequence: current second ${seconds}, delays ${delayTo8}, ${delayTo9}, ${delayTo10}`);
-    if (isHourStart) {
-        console.log('Using special hour start beep for third signal');
-    }
-
-    // Simple setTimeout approach - back to basics
-    setTimeout(() => {
-        console.log('Playing beep 1');
-        audioManager.play('audio/beep.wav', { volume: 0.3 });
-    }, delayTo8);
-    
-    setTimeout(() => {
-        console.log('Playing beep 2');
-        audioManager.play('audio/beep.wav', { volume: 0.3 });
-    }, delayTo9);
-    
-    setTimeout(() => {
-        console.log('Playing beep 3' + (isHourStart ? ' (HOUR START)' : ''));
-        audioManager.play(thirdBeepSound, { volume: 0.3 }).then(() => {
-            if (callback) {
-                setTimeout(() => {
-                    console.log('Starting voice callback');
-                    callback();
-                    isPlaying = false;
-                }, 500);
+        volumeSlider.addEventListener('input', (event) => {
+            globalVolume = event.target.value;
+            Howler.volume(globalVolume);
+            if (globalVolume > 0) {
+                isMuted = false;
+                Howler.mute(false);
+                muteIcon.className = 'fas fa-volume-up';
             } else {
-                isPlaying = false;
+                isMuted = true;
+                Howler.mute(true);
+                muteIcon.className = 'fas fa-volume-mute';
             }
         });
-    }, delayTo10);
-}
 
-function startPlayingSounds() {
-    // Simple approach - just use setInterval
-    const runSequence = () => {
-        console.log(`Starting sequence at ${new Date().toLocaleTimeString()}`);
-        playBeepSequence(playTimeSequence);
-    };
-    
-    // Start immediately
-    runSequence();
-    
-    // Then every 10 seconds
-    setInterval(runSequence, 10000);
-}
+        // Create Howl instance
+        function createHowl(url) {
+            if (audioCache.has(url)) {
+                return audioCache.get(url);
+            }
+            
+            const howl = new Howl({
+                src: [url],
+                volume: 1.0,
+                preload: true,
+                onload: () => {
+                    console.log(`✓ Loaded: ${url}`);
+                },
+                onloaderror: (id, error) => {
+                    console.error(`❌ Failed to load: ${url}`, error);
+                }
+            });
+            
+            audioCache.set(url, howl);
+            return howl;
+        }
 
-// Mobile/iOS support - requires user interaction
-let isAudioInitialized = false;
-let pendingStart = false;
+        // Play audio with volume
+        function playAudio(url, volume = 1.0) {
+            return new Promise((resolve) => {
+                const howl = createHowl(url);
+                howl.volume(volume);
+                howl.once('end', resolve);
+                howl.play();
+            });
+        }
 
-// Detect mobile devices
-const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // Play sequence of audio files
+        async function playSequence(files) {
+            for (const file of files) {
+                await playAudio(file.url, file.volume);
+            }
+        }
 
-async function initAudio() {
-    if (isAudioInitialized) return;
-    
-    try {
-        await audioManager.init();
-        audioManager.setVolume(0.0);
-        
-        // Preload critical sounds
-        await audioManager.preloadSounds([
-            'audio/beep.wav',
-            'audio/beep_peak.wav',
-            'audio/prefix.mp3'
-        ]);
-        
-        isAudioInitialized = true;
-        
-        // Hide audio prompt
-        const audioPrompt = document.getElementById('audioPrompt');
-        if (audioPrompt) {
-            audioPrompt.style.display = 'none';
+        // Play beep sequence
+        function playBeepSequence(callback) {
+            if (isPlaying) {
+                console.warn('Skipping overlapping sequence');
+                return;
+            }
+            
+            isPlaying = true;
+            console.log(`Starting beep sequence at ${new Date().toLocaleTimeString()}`);
+            
+            // Safety timeout to reset isPlaying flag
+            const safetyTimeout = setTimeout(() => {
+                console.warn('Safety timeout: resetting isPlaying flag');
+                isPlaying = false;
+            }, 8000); // 8 seconds max
+            
+            const now = new Date();
+            const currentMillis = now.getMilliseconds();
+            const seconds = now.getSeconds();
+            const minutes = now.getMinutes();
+            const millisToNextSecond = 1000 - currentMillis;
+
+            // Calculate seconds within the current 10-second cycle (0-9)
+            const cycleSecond = seconds % 10;
+            
+            // Calculate delays to reach seconds 8, 9, and 0 (which represents 10) of the cycle
+            const delayTo8 = cycleSecond < 8 ? 
+                millisToNextSecond + (8 - cycleSecond - 1) * 1000 : 
+                millisToNextSecond + (8 - cycleSecond + 10 - 1) * 1000;
+            const delayTo9 = delayTo8 + 1000;
+            const delayTo10 = delayTo8 + 2000;
+
+            // Check if this is the beginning of an hour
+            const isHourStart = minutes === 0 && cycleSecond >= 0 && cycleSecond <= 9;
+            const thirdBeepSound = isHourStart ? 'audio/beep_peak.wav' : 'audio/beep.wav';
+
+            console.log(`Current cycle second: ${cycleSecond}, Beep delays: ${delayTo8}, ${delayTo9}, ${delayTo10}`);
+            if (isHourStart) {
+                console.log('Using special hour start beep for third signal');
+            }
+
+            // Schedule beeps with Howler.js
+            setTimeout(() => {
+                console.log(`Playing beep 1 at ${new Date().toLocaleTimeString()}`);
+                const beep = createHowl('audio/beep.wav');
+                beep.volume(0.3);
+                beep.play();
+            }, delayTo8);
+
+            setTimeout(() => {
+                console.log(`Playing beep 2 at ${new Date().toLocaleTimeString()}`);
+                const beep = createHowl('audio/beep.wav');
+                beep.volume(0.3);
+                beep.play();
+            }, delayTo9);
+
+            setTimeout(() => {
+                console.log(`Playing beep 3 at ${new Date().toLocaleTimeString()}`);
+                const beep = createHowl(thirdBeepSound);
+                beep.volume(0.3);
+                beep.once('end', () => {
+                    if (callback) {
+                        setTimeout(async () => {
+                            console.log('Starting voice callback');
+                            await callback();
+                            console.log('Voice callback finished');
+                            clearTimeout(safetyTimeout);
+                            isPlaying = false;
+                        }, 500);
+                    } else {
+                        clearTimeout(safetyTimeout);
+                        isPlaying = false;
+                    }
+                });
+                beep.play();
+            }, delayTo10);
+        }
+
+        // Play time sequence
+        async function playTimeSequence() {
+            const now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            let seconds = now.getSeconds();
+
+            console.log(`Time sequence called at: ${now.toLocaleTimeString()}`);
+
+            // Offset by 10 seconds
+            seconds += 10;
+            if (seconds >= 60) {
+                seconds -= 60;
+                minutes++;
+                if (minutes >= 60) {
+                    minutes = 0;
+                    hours++;
+                    if (hours >= 24) {
+                        hours = 0;
+                    }
+                }
+            }
+
+            const sounds = [
+                { url: 'audio/prefix.mp3', volume: 0.7 },
+                { url: `audio/hours_${hours === 0 ? 'zero' : hours}.mp3`, volume: 0.6 }
+            ];
+
+            if (minutes > 0) {
+                sounds.push({ url: `audio/minutes_${minutes.toString().padStart(2, '0')}.mp3`, volume: 0.6 });
+            }
+
+            let secondsValue = String(Math.floor(seconds / 10) * 10).padStart(2, '0');
+            sounds.push({ url: `audio/seconds_${secondsValue}.mp3`, volume: 0.6 });
+
+            console.log(`Playing time: ${hours}:${minutes.toString().padStart(2, '0')}:${secondsValue}`);
+            
+            await playSequence(sounds);
+            console.log('Time sequence finished');
+        }
+
+        // Start audio system
+        function startPlayingSounds() {
+            const runSequence = () => {
+                if (isPlaying) {
+                    console.warn('Sequence already playing, skipping');
+                    return;
+                }
+                console.log(`Starting sequence at ${new Date().toLocaleTimeString()}`);
+                playBeepSequence(playTimeSequence);
+            };
+            
+            // Calculate initial delay to sync with 10-second boundaries
+            const now = Date.now();
+            const nextBoundary = Math.ceil(now / 10000) * 10000;
+            const initialDelay = nextBoundary - now;
+            
+            console.log(`Initial delay: ${initialDelay}ms to sync with 10-second boundary`);
+            
+            // Start at the next 10-second boundary
+            setTimeout(() => {
+                runSequence();
+                
+                // Then continue every 10 seconds with setInterval for consistent timing
+                setInterval(() => {
+                    runSequence();
+                }, 10000);
+            }, initialDelay);
+        }
+
+        // Audio initialization
+        let isAudioInitialized = false;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        async function initAudio() {
+            if (isAudioInitialized) return;
+            
+            console.log('Initializing audio...');
+            
+            try {
+                isAudioInitialized = true;
+                
+                // Preload critical files
+                console.log('Preloading critical files...');
+                createHowl('audio/beep.wav');
+                createHowl('audio/beep_peak.wav');
+                createHowl('audio/prefix.mp3');
+                
+                // Test sound
+                setTimeout(() => {
+                    console.log('Testing beep sound...');
+                    const testBeep = createHowl('audio/beep.wav');
+                    testBeep.volume(0.5);
+                    testBeep.play();
+                }, 1000);
+                
+                // Start the system
+                startPlayingSounds();
+                
+                console.log('Audio initialized successfully');
+                
+            } catch (e) {
+                console.error('Audio initialization failed:', e);
+            }
+        }
+
+        // Ensure elements exist before manipulating them
+        function safeInit() {
+            console.log('Page loaded, mobile:', isMobile);
+            
+            // Ensure clock elements exist
+            const clockElements = ['hours', 'minutes', 'seconds'];
+            clockElements.forEach(element => {
+                const el = document.querySelector(`.${element}`);
+                if (!el) {
+                    console.error(`Clock element .${element} not found`);
+                    return;
+                }
+            });
+            
+            // Auto-start audio on first click
+            document.addEventListener('click', function(e) {
+                initAudio();
+            }, { once: true });
+        }
+
+        // Multiple initialization methods for better mobile support
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', safeInit);
+        } else {
+            safeInit();
         }
         
-        if (pendingStart) {
-            startPlayingSounds();
-            pendingStart = false;
+        window.addEventListener('load', safeInit);
+
+        // Clock display
+        function updateClock() {
+            try {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+
+                const hoursEl = document.querySelector('.hours');
+                const minutesEl = document.querySelector('.minutes');
+                const secondsEl = document.querySelector('.seconds');
+
+                if (hoursEl) hoursEl.textContent = hours;
+                if (minutesEl) minutesEl.textContent = minutes;
+                if (secondsEl) secondsEl.textContent = seconds;
+
+                requestAnimationFrame(updateClock);
+            } catch (e) {
+                console.error('Clock update error:', e);
+                // Retry after 1 second
+                setTimeout(updateClock, 1000);
+            }
         }
-    } catch (e) {
-        console.error('Audio initialization failed:', e);
-    }
-}
 
-// Add click handler for mobile
-document.addEventListener('click', initAudio);
-document.addEventListener('touchstart', initAudio);
-
-window.onload = function() {
-    if (isAudioInitialized) {
-        startPlayingSounds();
-    } else {
-        pendingStart = true;
-        
-        // Show audio prompt on mobile
-        if (isMobile) {
-            const audioPrompt = document.getElementById('audioPrompt');
-            if (audioPrompt) {
-                audioPrompt.style.display = 'block';
+        // Immediate clock start - multiple fallbacks
+        function startClock() {
+            try {
+                updateClock();
+            } catch (e) {
+                console.error('Clock start error:', e);
+                // Simple fallback
+                setTimeout(() => {
+                    const now = new Date();
+                    document.querySelector('.hours').textContent = String(now.getHours()).padStart(2, '0');
+                    document.querySelector('.minutes').textContent = String(now.getMinutes()).padStart(2, '0');
+                    document.querySelector('.seconds').textContent = String(now.getSeconds()).padStart(2, '0');
+                    startClock();
+                }, 1000);
             }
         }
         
-        // Try to initialize immediately (works on desktop)
-        initAudio();
-    }
-};
-
-function playTimeSequence() {
-    const now = new Date();
-    let hours = now.getHours();
-    let minutes = now.getMinutes();
-    let seconds = now.getSeconds();
-
-    console.log(`Time sequence called at: ${now.toLocaleTimeString()}`);
-
-    // Offset by 10 seconds
-    seconds += 10;
-    if (seconds >= 60) {
-        seconds -= 60;
-        minutes++;
-        if (minutes >= 60) {
-            minutes = 0;
-            hours++;
-            if (hours >= 24) {
-                hours = 0;
-            }
+        // Start immediately
+        try {
+            startClock();
+        } catch (e) {
+            console.error('Immediate start failed:', e);
         }
-    }
+        
+        // Also start on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startClock);
+        }
+        
+        // And on window load
+        window.addEventListener('load', startClock);
+        
+        // Emergency fallback - simple clock without requestAnimationFrame
+        setTimeout(() => {
+            if (!document.querySelector('.hours').textContent || document.querySelector('.hours').textContent === '12') {
+                console.log('Emergency fallback activated');
+                function simpleClock() {
+                    try {
+                        const now = new Date();
+                        const h = document.querySelector('.hours');
+                        const m = document.querySelector('.minutes');
+                        const s = document.querySelector('.seconds');
+                        
+                        if (h) h.textContent = String(now.getHours()).padStart(2, '0');
+                        if (m) m.textContent = String(now.getMinutes()).padStart(2, '0');
+                        if (s) s.textContent = String(now.getSeconds()).padStart(2, '0');
+                    } catch (e) {
+                        console.error('Simple clock error:', e);
+                    }
+                    setTimeout(simpleClock, 1000);
+                }
+                simpleClock();
+            }
+        }, 2000);
 
-    const prefixSound = { url: 'audio/prefix.mp3', options: { volume: 0.7 } };
-    const hoursSound = { url: `audio/hours_${hours === 0 ? 'zero' : hours}.mp3`, options: { volume: 0.6 } };
-    let secondsValue = String(Math.floor(seconds / 10) * 10).padStart(2, '0');
-    const secondsSound = { url: `audio/seconds_${secondsValue}.mp3`, options: { volume: 0.6 } };
+        // Simple font loading notification
+        if (document.fonts) {
+            document.fonts.ready.then(() => {
+                console.log('All fonts loaded successfully');
+            });
+        }
 
-    console.log(`Playing time: ${hours}:${minutes.toString().padStart(2, '0')}:${secondsValue}`);
-    
-    if (minutes > 0) {
-        const minutesSound = { url: `audio/minutes_${minutes.toString().padStart(2, '0')}.mp3`, options: { volume: 0.6 } };
-        playInSequence([prefixSound, hoursSound, minutesSound, secondsSound]);
-    } else {
-        playInSequence([prefixSound, hoursSound, secondsSound]);
-    }
-}
-
-function playInSequence(sounds) {
-    if (sounds.length === 0) return;
-    
-    const [first, ...rest] = sounds;
-    audioManager.play(first.url, first.options).then(() => {
-        playInSequence(rest);
-    });
-}
-
-
-
+        // Kaleidoscope background animation
         function updateBackgroundRotation() {
             const now = new Date();
             const seconds = now.getSeconds();
@@ -437,90 +636,80 @@ function playInSequence(sounds) {
             const degrees = (totalMillis / 1000) * 6;
             const kaleidoscope = document.querySelector('.kaleidoscope');
 
-            kaleidoscope.style.transform = `rotate(${degrees}deg)`;
+            if (kaleidoscope) {
+                kaleidoscope.style.transform = `rotate(${degrees}deg)`;
 
-            if (seconds === 59 && milliseconds > 900) {
-                kaleidoscope.style.transitionDuration = '0.5s';
-            } else if (seconds === 0) {
-                kaleidoscope.style.transitionDuration = '0s';
-            } else {
-                kaleidoscope.style.transitionDuration = `${1 - milliseconds / 1000}s`;
+                if (seconds === 59 && milliseconds > 900) {
+                    kaleidoscope.style.transitionDuration = '0.5s';
+                } else if (seconds === 0) {
+                    kaleidoscope.style.transitionDuration = '0s';
+                } else {
+                    kaleidoscope.style.transitionDuration = `${1 - milliseconds / 1000}s`;
+                }
             }
 
             requestAnimationFrame(updateBackgroundRotation);
         }
 
         function updateBackgroundColor() {
-    const now = new Date();
-    const seconds = now.getSeconds();
-    const milliseconds = now.getMilliseconds();
-    const progress = (seconds * 1000 + milliseconds) / 60000;
-
-    const kaleidoscope = document.querySelector('.kaleidoscope');
-
-    const colors = [
-        '#FF5733', '#C70039', '#900C3F', '#581845', '#1F618D',
-        '#2ECC71', '#F1C40F', '#E67E22', '#D35400', '#AAB7B8',
-        '#3498DB', '#9B59B6', '#16A085', '#27AE60', '#2980B9',
-        '#8E44AD', '#34495E', '#2C3E50', '#7D3C98', '#AF7AC5',
-        '#1ABC9C', '#F39C12', '#D98880', '#5DADE2', '#A569BD',
-        '#73C6B6', '#F7DC6F', '#D4AC0D', '#F5B041', '#DC7633',
-        '#A9CCE3', '#99A3A4', '#7FB3D5', '#82E0AA', '#B7950B',
-        '#AF601A', '#E59866', '#BB8FCE', '#F1948A', '#B03A2E',
-        '#85C1E9', '#F5CBA7', '#E74C3C', '#45B39D', '#9A7D0A',
-        '#85929E', '#2874A6', '#884EA0', '#2E86C1', '#3498DB',
-        '#D7BDE2', '#FAD7A0', '#ABB2B9', '#7FB3D5', '#76D7C4',
-        '#A3E4D7', '#D1F2EB', '#D0ECE7', '#F9E79F', '#F5CBA7'
-    ];
-
-    const currentColorIndex = Math.floor(now.getMinutes() % colors.length);
-    const nextColorIndex = (currentColorIndex + 1) % colors.length;
-
-    const currentColor = colors[currentColorIndex];
-    const nextColor = colors[nextColorIndex];
-
-    kaleidoscope.style.background = `linear-gradient(to bottom right, ${currentColor}, ${nextColor})`;
-
-    requestAnimationFrame(updateBackgroundColor);
-}
-
-function startRotationAndFade() {
-    const kaleidoscope = document.querySelector('.kaleidoscope');
-    kaleidoscope.style.opacity = 0;
-    kaleidoscope.style.transition = 'none';
-
-    const now = new Date();
-    const seconds = now.getSeconds();
-    const milliseconds = now.getMilliseconds();
-    const totalMillis = seconds * 1000 + milliseconds;
-    const degrees = (totalMillis / 1000) * 6;
-    kaleidoscope.style.transform = `rotate(${degrees}deg)`;
-
-    setTimeout(() => {
-        kaleidoscope.style.transition = 'opacity 4s ease-in-out, transform 1s linear';
-        kaleidoscope.style.opacity = 1;
-        requestAnimationFrame(updateBackgroundRotation);
-        requestAnimationFrame(updateBackgroundColor); // Здесь добавляем
-    }, 100);
-}
-
-document.addEventListener('DOMContentLoaded', startRotationAndFade);
-
-
-        function updateClock() {
             const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+            const progress = (seconds * 1000 + milliseconds) / 60000;
 
-            document.querySelector('.hours').textContent = hours;
-            document.querySelector('.minutes').textContent = minutes;
-            document.querySelector('.seconds').textContent = seconds;
+            const kaleidoscope = document.querySelector('.kaleidoscope');
+            if (!kaleidoscope) return;
 
-            requestAnimationFrame(updateClock);
+            const colors = [
+                '#FF5733', '#C70039', '#900C3F', '#581845', '#1F618D',
+                '#2ECC71', '#F1C40F', '#E67E22', '#D35400', '#AAB7B8',
+                '#3498DB', '#9B59B6', '#16A085', '#27AE60', '#2980B9',
+                '#8E44AD', '#34495E', '#2C3E50', '#7D3C98', '#AF7AC5',
+                '#1ABC9C', '#F39C12', '#D98880', '#5DADE2', '#A569BD',
+                '#73C6B6', '#F7DC6F', '#D4AC0D', '#F5B041', '#DC7633',
+                '#A9CCE3', '#99A3A4', '#7FB3D5', '#82E0AA', '#B7950B',
+                '#AF601A', '#E59866', '#BB8FCE', '#F1948A', '#B03A2E',
+                '#85C1E9', '#F5CBA7', '#E74C3C', '#45B39D', '#9A7D0A',
+                '#85929E', '#2874A6', '#884EA0', '#2E86C1', '#3498DB',
+                '#D7BDE2', '#FAD7A0', '#ABB2B9', '#7FB3D5', '#76D7C4',
+                '#A3E4D7', '#D1F2EB', '#D0ECE7', '#F9E79F', '#F5CBA7'
+            ];
+
+            const currentColorIndex = Math.floor(now.getMinutes() % colors.length);
+            const nextColorIndex = (currentColorIndex + 1) % colors.length;
+
+            const currentColor = colors[currentColorIndex];
+            const nextColor = colors[nextColorIndex];
+
+            kaleidoscope.style.background = `linear-gradient(to bottom right, ${currentColor}, ${nextColor})`;
+
+            requestAnimationFrame(updateBackgroundColor);
         }
 
-        requestAnimationFrame(updateClock);
+        function startRotationAndFade() {
+            const kaleidoscope = document.querySelector('.kaleidoscope');
+            if (!kaleidoscope) return;
+            
+            kaleidoscope.style.opacity = 0;
+            kaleidoscope.style.transition = 'none';
+
+            const now = new Date();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+            const totalMillis = seconds * 1000 + milliseconds;
+            const degrees = (totalMillis / 1000) * 6;
+            kaleidoscope.style.transform = `rotate(${degrees}deg)`;
+
+            setTimeout(() => {
+                kaleidoscope.style.transition = 'opacity 4s ease-in-out, transform 1s linear';
+                kaleidoscope.style.opacity = 1;
+                requestAnimationFrame(updateBackgroundRotation);
+                requestAnimationFrame(updateBackgroundColor);
+            }, 100);
+        }
+
+        // Start kaleidoscope animation
+        startRotationAndFade();
     </script>
 </body>
 </html>
